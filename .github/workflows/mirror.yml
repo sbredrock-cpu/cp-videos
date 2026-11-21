@@ -1,0 +1,24 @@
+# Copies the daily videos (results, free pick of the day, free pick results) from computerprediction.com into this public repo, so Zapier can download them
+# (Zapier's servers can't download from the website's host). Zapier watches feed.xml here and posts each new video to YouTube.
+name: Mirror daily videos
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: mirror
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy new videos and rebuild feed.xml
+        run: python3 mirror.py
+      - name: Save (single commit, so the repo stays small)
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then echo "Nothing new"; exit 0; fi
+          git checkout --orphan new-main
+          git add -A
+          git -c user.name="cp-video-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Videos through $(ls CP-*.mp4 | sed -E "s/.*-([0-9-]{10})\.mp4/\1/" | sort | tail -1)"
+          git push -f origin HEAD:main
